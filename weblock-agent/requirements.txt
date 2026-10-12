@@ -1,0 +1,4 @@
+psutil>=5.9
+requests>=2.31
+pywin32>=300; sys_platform == "win32"
+pytest>=8

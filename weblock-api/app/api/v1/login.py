@@ -173,19 +173,10 @@ def analyze_login(
             # Auto-escalation: 3+ Suspicious in 5 min -> block (preserved semantics).
             if result["classification"] == "Suspicious":
                 from datetime import timedelta
+
+                from app.core.timeutil import as_utc
+
                 cutoff = datetime.now(timezone.utc) - timedelta(minutes=5)
-                naive_cutoff = cutoff.replace(tzinfo=None)
-                count = (
-                    db.query(LoginEvent)
-                    .filter(
-                        LoginEvent.user_id == target.id,
-                        LoginEvent.org_id == target.org_id,
-                        LoginEvent.classification == "Suspicious",
-                    )
-                    .count()
-                )
-                # NOTE: created_at is tz-aware server_default; compare in Python
-                # to avoid tz-naive/aware issues across drivers: re-query recent.
                 recent = (
                     db.query(LoginEvent)
                     .filter(LoginEvent.user_id == target.id)
@@ -197,7 +188,7 @@ def analyze_login(
                     1 for e in recent
                     if e.classification == "Suspicious"
                     and e.created_at
-                    and e.created_at.replace(tzinfo=None) > naive_cutoff
+                    and as_utc(e.created_at) > cutoff
                 )
                 if recent_susp >= 3:
                     target.is_blocked = True
@@ -207,10 +198,9 @@ def analyze_login(
                             actor_id=current_user.id,
                             action="user.auto_blocked",
                             target=target.email,
-                            meta_data={"reason": "3+ suspicious in 5 min"},
+                            meta_data={                            "reason": "3+ suspicious in 5 min"},
                         )
                     )
-                _ = count  # keep count query for observability/logging
 
         db.add(
             AuditLog(

@@ -78,10 +78,12 @@ class Endpoint(Base):
     mac_address: Mapped[str | None] = mapped_column(String(50))
     fingerprint: Mapped[str | None] = mapped_column(Text)
     agent_version: Mapped[str | None] = mapped_column(String(50))
-    # healthy | degraded | isolated | offline
+    # healthy | degraded | isolated | offline | revoked
     status: Mapped[str] = mapped_column(String(50), nullable=False, default="healthy")
     risk_score: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
-    last_heartbeat: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    name: Mapped[str] = mapped_column(String(255), default="")
+    config: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
+    last_seen: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
@@ -254,4 +256,74 @@ class AuditLog(Base):
     meta_data: Mapped[dict] = mapped_column("metadata", JSON, default=dict)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False, index=True
+    )
+
+
+class EnrollmentToken(Base):
+    """Single-use enrollment secret (only sha256 stored)."""
+
+    __tablename__ = "enrollment_tokens"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    org_id: Mapped[int] = mapped_column(
+        ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    token_hash: Mapped[str] = mapped_column(String(64), nullable=False, unique=True)
+    label: Mapped[str] = mapped_column(String(255), default="")
+    expires_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+    used: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    created_by: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL")
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+
+class AgentCredential(Base):
+    """Persistent endpoint API key (only sha256 stored, shown once)."""
+
+    __tablename__ = "agent_credentials"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    endpoint_id: Mapped[int] = mapped_column(
+        ForeignKey("endpoints.id", ondelete="CASCADE"),
+        nullable=False, unique=True, index=True,
+    )
+    key_hash: Mapped[str] = mapped_column(String(64), nullable=False, unique=True)
+    revoked: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+
+class TelemetryEvent(Base):
+    """Versioned agent telemetry. Dedup key: (endpoint_id, event_id)."""
+
+    __tablename__ = "telemetry_events"
+    __table_args__ = (
+        UniqueConstraint("endpoint_id", "event_id",
+                         name="uq_telemetry_endpoint_event"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    org_id: Mapped[int] = mapped_column(
+        ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    endpoint_id: Mapped[int] = mapped_column(
+        ForeignKey("endpoints.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    event_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    schema_version: Mapped[str] = mapped_column(String(16), default="1.0")
+    type: Mapped[str] = mapped_column(String(32), nullable=False, index=True)
+    source: Mapped[str] = mapped_column(String(64), default="agent")
+    occurred_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, index=True
+    )
+    payload: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
+    event_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    received_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
     )

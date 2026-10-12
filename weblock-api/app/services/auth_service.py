@@ -18,6 +18,7 @@ from app.core.security import (
     decode_refresh_token,
     verify_password,
 )
+from app.core.timeutil import as_utc
 from app.db.models import AuditLog, RefreshToken, User
 
 logger = logging.getLogger("weblock.auth")
@@ -132,7 +133,7 @@ def refresh_flow(db: Session, refresh_token: str) -> dict:
     )
     if not stored:
         raise HTTPException(status_code=401, detail="Refresh token revoked")
-    if stored.expires_at.replace(tzinfo=timezone.utc) < datetime.now(timezone.utc):
+    if as_utc(stored.expires_at) < datetime.now(timezone.utc):
         raise HTTPException(status_code=401, detail="Refresh token expired")
     user = db.query(User).filter(User.id == payload["user_id"]).first()
     if not user or user.is_blocked:

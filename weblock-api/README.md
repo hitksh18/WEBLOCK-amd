@@ -1,4 +1,4 @@
-# WebLock API — Phase 0 (Foundation)
+# WebLock API — Phase 1 (Foundation + Endpoint Telemetry)
 
 Modular FastAPI monolith. PostgreSQL + SQLAlchemy 2.x + Alembic.
 
@@ -16,10 +16,27 @@ Modular FastAPI monolith. PostgreSQL + SQLAlchemy 2.x + Alembic.
 - RBAC (admin/analyst/investigator/viewer), org isolation (`org_id` on every
   tenant row), audit logs, SHA-256 evidence, login rate limiting
 
+## Implemented (Phase 1 — NEW)
+
+- `POST /v1/admin/enrollment-tokens` (admin) — mint one-time `wle_…` token
+  (24h expiry, single-use, sha256-only storage)
+- `POST /v1/endpoints/enroll` — bootstrap endpoint → `agent_id` + `wlk_…`
+  API key shown ONCE
+- `POST /v1/endpoints/{id}/heartbeat` (agent key; path id must match key)
+- `GET /v1/endpoints/{id}/config` (agent key; server→agent config pull)
+- `GET /v1/endpoints`, `GET /v1/endpoints/{id}` (user JWT, org-scoped,
+  computed `presence`: healthy/offline/never-seen/isolated/revoked)
+- `PUT /v1/admin/endpoints/{id}/config` (validated keys only, audited)
+- `POST /v1/admin/endpoints/{id}/revoke` (revokes key, status=revoked, audited)
+- `POST /v1/telemetry/batch` (agent key) — envelope validation, 500-event /
+  2MB caps, per-event reject list, `(endpoint,event)` dedup, canonical
+  event hash → `telemetry_events`
+- Timezone-safe datetimes (`app/core/timeutil.as_utc` — fixed IST relabel bug)
+
 ## Planned (NOT built yet)
 
-Windows agent, telemetry pipeline, detection rules, correlation, AI analyst,
-response actions, dashboard, Docker. See root README roadmap.
+Detection rules, correlation, AI analyst, response actions, dashboard,
+Docker. Agent: `weblock-agent/README.md`. See root README roadmap.
 
 ## Setup
 

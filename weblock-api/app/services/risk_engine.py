@@ -15,6 +15,7 @@ from datetime import datetime, timedelta, timezone
 
 from sqlalchemy.orm import Session
 
+from app.core.timeutil import as_utc
 from app.db.models import LoginEvent, OrgPolicy
 
 MODEL_VERSION = "v4-policy-engine-db"
@@ -136,8 +137,7 @@ def calculate_risk(
             factors.append("New location detected.")
         recent = [
             e for e in history
-            if e.created_at and e.created_at.replace(tzinfo=timezone.utc)
-            > now - timedelta(minutes=2)
+            if e.created_at and as_utc(e.created_at) > now - timedelta(minutes=2)
         ]
         if len(recent) >= 3:
             risk += 20

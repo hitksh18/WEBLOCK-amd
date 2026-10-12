@@ -4,16 +4,16 @@ Enterprise-oriented security platform: endpoint telemetry → detection →
 correlation → risk → incidents → forensics → AI-assisted analysis →
 controlled response → SOC control center.
 
-## Status: Phase 0 complete (backend foundation)
+## Status: Phase 1 complete (backend + live Windows agent)
 
 | Area | State |
 |---|---|
-| Backend API (`weblock-api/app`, `/v1`) | **Implemented + tested (20 tests)** |
-| PostgreSQL + Alembic (`0001_phase0_baseline`) | **Implemented** |
+| Backend API (`weblock-api/app`, `/v1`) | **Implemented + tested (36 tests)** |
+| PostgreSQL + Alembic (`0002_phase1_endpoints_telemetry`) | **Implemented** |
 | Auth (JWT access/refresh, RBAC, org isolation) | **Implemented** |
 | Login risk → incidents → evidence → audit | **Implemented** |
-| Windows agent (`weblock-agent/`) | Planned — Phase 1 |
-| Telemetry pipeline | Planned — Phase 2 |
+| Windows agent (`weblock-agent/`, 18 tests, live-verified) | **Implemented — Phase 1** |
+| Telemetry pipeline (`POST /v1/telemetry/batch` + outbox) | **Implemented — Phase 1** |
 | Detection / correlation / adaptive risk | Planned — Phases 3–5 |
 | Forensics reports, MITRE, AI analyst, response | Planned — Phases 6–10 |
 | Dashboard (`weblock-dashboard/`) | Planned — Phases 12–15 (empty scaffold today) |
