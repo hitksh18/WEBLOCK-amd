@@ -174,6 +174,18 @@ def dispatch_event(db: Session, event: SecurityEvent,
         persisted += len(inserted)
         if inserted:
             logger.info("detection rule=%s event=%s", match.rule_id, event.id)
+            # Phase 4 handoff: correlate (never breaks detection on failure).
+            try:
+                from app.core.config import settings as _settings
+                from app.services.correlate import process_detection as _correlate
+                det_row = db.query(Detection).filter(
+                    Detection.id == inserted[0]).first()
+                if det_row is not None:
+                    _correlate(db, det_row,
+                               window=_settings.CORRELATION_WINDOW_SECONDS)
+            except Exception:
+                logger.exception("correlation hook failed for detection %s",
+                                 inserted[0])
     return persisted
 
 

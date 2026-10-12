@@ -443,3 +443,70 @@ class Detection(Base):
     detected_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False, index=True
     )
+
+
+class CorrelationCluster(Base):
+    """A group of related detections (multi-stage behavior candidate).
+
+    Member detections live in correlation_members; payloads are never copied
+    here. Phase 6 consumes clusters to decide on incidents.
+    """
+
+    __tablename__ = "correlation_clusters"
+    __table_args__ = (
+        UniqueConstraint("org_id", "correlation_key",
+                         name="uq_clusters_org_key"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    org_id: Mapped[int] = mapped_column(
+        ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    endpoint_id: Mapped[int] = mapped_column(
+        ForeignKey("endpoints.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    correlation_key: Mapped[str] = mapped_column(String(128), nullable=False)
+    first_seen: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, index=True
+    )
+    last_seen: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, index=True
+    )
+    status: Mapped[str] = mapped_column(String(16), default="open", index=True)
+    confidence: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    severity: Mapped[str] = mapped_column(String(16), default="low")
+    detection_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    distinct_family_count: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0)
+    families: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
+    primary_detection_id: Mapped[int | None] = mapped_column(
+        ForeignKey("detections.id", ondelete="SET NULL")
+    )
+    explanation: Mapped[str] = mapped_column(Text, default="")
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+
+class CorrelationMember(Base):
+    __tablename__ = "correlation_members"
+    __table_args__ = (
+        UniqueConstraint("cluster_id", "detection_id",
+                         name="uq_members_cluster_detection"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    cluster_id: Mapped[int] = mapped_column(
+        ForeignKey("correlation_clusters.id", ondelete="CASCADE"),
+        nullable=False, index=True,
+    )
+    detection_id: Mapped[int] = mapped_column(
+        ForeignKey("detections.id", ondelete="CASCADE"),
+        nullable=False, index=True,
+    )
+    added_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )

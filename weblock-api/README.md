@@ -77,6 +77,23 @@ Modular FastAPI monolith. PostgreSQL + SQLAlchemy 2.x + Alembic.
 - Migration `0004_fix_detections_meta`; drift-guard test
   (`test_migrations.py`) compares migrated schema vs models on scratch DB.
 
+## Implemented (Phase 4 — NEW)
+
+- **Correlation engine** (`app/services/correlate.py`): `process_detection()`
+  hooked from detection dispatch (same transaction, failure-isolated).
+  No cluster for isolated/single-family detections; new cluster when ≥2
+  detections across ≥2 rule families share endpoint + 30-min window
+  (`CORRELATION_WINDOW_SECONDS`, bidirectional for backfill).
+- **Score/severity** (deterministic, documented in code): 20 + 15/family
+  (max +60) + severity weight + proximity + actor bonus, clamped 0–100;
+  CRITICAL iff ≥3 families with HIGH+, else HIGH/MEDIUM/LOW table.
+- **Explanations** use "observed sequence" wording; timeline有序 via members.
+- **APIs**: `GET /v1/correlations` (endpoint/severity/status/family/time),
+  `GET /v1/correlations/{id}` (metadata + chronological timeline with
+  detection→event→telemetry refs), `POST …/close` (analyst+, audited),
+  `POST /v1/admin/correlations/expire` (admin, >2 windows stale).
+- Migration `0005_correlation` (`correlation_clusters` + members table).
+
 ## Planned (NOT built yet)
 
 Detection rules, correlation, AI analyst, response actions, dashboard,

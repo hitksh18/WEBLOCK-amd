@@ -29,6 +29,8 @@ class Settings(BaseSettings):
     LOGIN_RATE_LIMIT_MAX_ATTEMPTS: int = 10
     LOGIN_RATE_LIMIT_WINDOW_SECONDS: int = 300
 
+    CORRELATION_WINDOW_SECONDS: int = 1800
+
     NOTIFICATIONS_ENABLED: bool = False
     WEBLOCK_EMAIL: str = ""
     WEBLOCK_EMAIL_PASSWORD: str = ""
