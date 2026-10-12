@@ -327,3 +327,127 @@ class TelemetryEvent(Base):
     received_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
+    # Phase 2 processing metadata — raw payload is NEVER mutated.
+    processing_status: Mapped[str] = mapped_column(
+        String(16), nullable=False, default="RECEIVED",
+        index=True)  # RECEIVED|NORMALIZED|PROCESSED|FAILED
+    normalization_version: Mapped[str | None] = mapped_column(String(16))
+    event_category: Mapped[str] = mapped_column(String(32), default="")
+    processing_error: Mapped[str] = mapped_column(Text, default="")
+    normalized_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class SecurityEvent(Base):
+    """Normalized security event — stable contract for detection/correlation.
+
+    Structured columns cover what rules query; event-specific detail stays in
+    `attributes`; the full raw envelope stays in telemetry_events (FK).
+    """
+
+    __tablename__ = "security_events"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    org_id: Mapped[int] = mapped_column(
+        ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    endpoint_id: Mapped[int] = mapped_column(
+        ForeignKey("endpoints.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    telemetry_ref: Mapped[int] = mapped_column(
+        ForeignKey("telemetry_events.id", ondelete="CASCADE"),
+        nullable=False, unique=True, index=True,
+    )
+    event_id: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    category: Mapped[str] = mapped_column(String(32), nullable=False, index=True)
+    subtype: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    severity_hint: Mapped[str] = mapped_column(String(16), default="info")
+    occurred_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, index=True
+    )
+    received_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    processed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    actor: Mapped[str] = mapped_column(String(255), default="")
+    host: Mapped[str] = mapped_column(String(255), default="")
+    proc_name: Mapped[str] = mapped_column(String(255), default="")
+    proc_pid: Mapped[int | None] = mapped_column(Integer)
+    proc_exe: Mapped[str] = mapped_column(Text, default="")
+    remote_addr: Mapped[str] = mapped_column(String(255), default="")
+    remote_port: Mapped[int | None] = mapped_column(Integer)
+    status: Mapped[str] = mapped_column(String(16), default="NORMALIZED", index=True)
+    error: Mapped[str] = mapped_column(Text, default="")
+    norm_version: Mapped[str] = mapped_column(String(16), default="1")
+    attributes: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
+
+
+class DetectionRule(Base):
+    """DB-backed rule config. org_id NULL = global. Phase 3 adds real rules."""
+
+    __tablename__ = "detection_rules"
+    __table_args__ = (
+        UniqueConstraint("org_id", "rule_id", name="uq_rules_org_rule"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    org_id: Mapped[int | None] = mapped_column(
+        ForeignKey("organizations.id", ondelete="CASCADE"), index=True
+    )
+    rule_id: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    description: Mapped[str] = mapped_column(Text, default="")
+    enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    severity: Mapped[str] = mapped_column(String(16), default="medium")
+    category: Mapped[str] = mapped_column(String(32), default="")
+    version: Mapped[str] = mapped_column(String(16), default="1")
+    params: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
+    mitre: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+
+class Detection(Base):
+    """A rule match. References security_events; never copies raw payloads."""
+
+    __tablename__ = "detections"
+    __table_args__ = (
+        UniqueConstraint("org_id", "rule_id", "rule_version", "primary_event_id",
+                         name="uq_detections_idempotency"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    org_id: Mapped[int] = mapped_column(
+        ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    endpoint_id: Mapped[int] = mapped_column(
+        ForeignKey("endpoints.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    rule_id: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    rule_version: Mapped[str] = mapped_column(String(16), default="1")
+    severity: Mapped[str] = mapped_column(String(16), nullable=False)
+    confidence: Mapped[float] = mapped_column(nullable=False, default=0.0)
+    status: Mapped[str] = mapped_column(String(24), default="open", index=True)
+    title: Mapped[str] = mapped_column(Text, nullable=False)
+    explanation: Mapped[str] = mapped_column(Text, default="")
+    primary_event_id: Mapped[int] = mapped_column(
+        ForeignKey("security_events.id", ondelete="CASCADE"),
+        nullable=False, index=True,
+    )
+    related_event_ids: Mapped[list] = mapped_column(JSON, nullable=False,
+                                                    default=list)
+    meta_data: Mapped[dict] = mapped_column("metadata", JSON, default=dict)
+    detected_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False, index=True
+    )
+    # Phase 2 processing metadata — raw payload is NEVER mutated.
+    processing_status: Mapped[str] = mapped_column(
+        String(16), nullable=False, default="RECEIVED",
+        index=True)  # RECEIVED|NORMALIZED|PROCESSED|FAILED
+    normalization_version: Mapped[str | None] = mapped_column(String(16))
+    event_category: Mapped[str] = mapped_column(String(32), default="")
+    processing_error: Mapped[str] = mapped_column(Text, default="")
+    normalized_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

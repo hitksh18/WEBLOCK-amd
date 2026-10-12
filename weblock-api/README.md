@@ -33,6 +33,33 @@ Modular FastAPI monolith. PostgreSQL + SQLAlchemy 2.x + Alembic.
   event hash → `telemetry_events`
 - Timezone-safe datetimes (`app/core/timeutil.as_utc` — fixed IST relabel bug)
 
+## Implemented (Phase 2 — NEW)
+
+- **Pipeline**: `POST /v1/telemetry/batch` now runs
+  RECEIVE→AUTH→VALIDATE→DEDUP→PERSIST RAW→NORMALIZE→CLASSIFY→DISPATCH→STATUS
+  (`app/services/ingest.py`). Response contract unchanged from Phase 1.
+- **Raw preservation**: `telemetry_events` gains processing metadata
+  (`processing_status` RECEIVED|NORMALIZED|PROCESSED|FAILED, `event_category`,
+  `normalization_version`, `processing_error`, `normalized_at`); payloads never mutated.
+- **Normalized events** (`security_events`): category/subtype/severity_hint,
+  actor/host/process/network facets + attributes JSON + `telemetry_ref` FK.
+  Taxonomy: AUTHENTICATION (LOGON_SUCCESS/FAILURE/LOGOFF/PRIVILEGED_LOGON/
+  SESSION_SNAPSHOT), IDENTITY (ACCOUNT_CREATED), PROCESS (SNAPSHOT), NETWORK
+  (CONNECTION_ROLLUP), SYSTEM (STATUS/SERVICE_SNAPSHOT), USB
+  (VOLUME_SNAPSHOT/DEVICE_CHANGE), AGENT (HEARTBEAT/COLLECTOR_STATUS).
+- **Detection foundation**: `DetectionRule`/`Detection` tables, rule Protocol +
+  `dispatch_event()` dispatcher (idempotent via unique constraint),
+  `reprocess_failed()` retry. Production registry intentionally empty until
+  Phase 3; `TEST-MARKER` is test-only, never seeded in production.
+- **Login adapter** (`app/services/login_adapter.py`): normalized auth events →
+  risk-engine input shape; `/v1/analyze-login` retained unchanged as
+  compatibility endpoint (Phase 0 scores untouched).
+- **Query APIs**: `GET /v1/events` (endpoint/category/type/severity/actor/time/
+  search + pagination), `GET /v1/endpoints/{id}/events` (chronological timeline),
+  `GET /v1/detections` — all org-scoped.
+- **Retention**: `python -m app.retention --days N [--apply]` (dry-run default,
+  refuses <7d, never touches evidence/incidents/audit).
+
 ## Planned (NOT built yet)
 
 Detection rules, correlation, AI analyst, response actions, dashboard,

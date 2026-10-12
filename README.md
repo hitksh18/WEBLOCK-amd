@@ -4,17 +4,17 @@ Enterprise-oriented security platform: endpoint telemetry → detection →
 correlation → risk → incidents → forensics → AI-assisted analysis →
 controlled response → SOC control center.
 
-## Status: Phase 1 complete (backend + live Windows agent)
+## Status: Phase 2 complete (normalization + detection foundation)
 
 | Area | State |
 |---|---|
-| Backend API (`weblock-api/app`, `/v1`) | **Implemented + tested (36 tests)** |
-| PostgreSQL + Alembic (`0002_phase1_endpoints_telemetry`) | **Implemented** |
+| Backend API (`weblock-api/app`, `/v1`) | **Implemented + tested (54 tests)** |
+| PostgreSQL + Alembic (`0003_phase2_normalize`) | **Implemented (18 tables)** |
 | Auth (JWT access/refresh, RBAC, org isolation) | **Implemented** |
 | Login risk → incidents → evidence → audit | **Implemented** |
 | Windows agent (`weblock-agent/`, 18 tests, live-verified) | **Implemented — Phase 1** |
-| Telemetry pipeline (`POST /v1/telemetry/batch` + outbox) | **Implemented — Phase 1** |
-| Detection / correlation / adaptive risk | Planned — Phases 3–5 |
+| Telemetry pipeline + normalization + dispatcher | **Implemented — Phase 2** |
+| Detection / correlation / adaptive risk | Planned — Phases 3–5 (infrastructure ready) |
 | Forensics reports, MITRE, AI analyst, response | Planned — Phases 6–10 |
 | Dashboard (`weblock-dashboard/`) | Planned — Phases 12–15 (empty scaffold today) |
 | `weblock-ai/`, `weblock-forensics/`, `weblock-compliance/`, `weblock-sdk/` | Empty scaffolds, planned Phases 7–9 |
@@ -45,6 +45,6 @@ Phase 0 foundation → 1 agent → 2 telemetry → 3 detection → 4 correlation
 ## Known limitations (honest)
 
 - Single-server monolith; in-memory login rate limiter (Redis needed to scale).
-- Login-centric until telemetry pipeline lands (Phase 2).
+- Detection registry empty until Phase 3 (dispatcher + tables ready, no fake threats).
 - Notifications stubbed; no real EDR/driver claims.
 - Previous leaked secrets rotated; old values must be treated as compromised.
