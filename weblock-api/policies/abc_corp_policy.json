@@ -1,0 +1,68 @@
+{
+  "organization": "ABC Corp",
+
+  "global_policy": {
+    "allowed_countries": ["India"],
+    "risk_threshold": 75
+  },
+
+  "roles": {
+
+    "day_shift": {
+      "allowed_hours": { "start": "08:00", "end": "20:00" },
+      "allowed_ip_ranges": ["10.0.0.0/8"],
+      "require_registered_device": true
+    },
+
+    "night_shift": {
+      "allowed_hours": { "start": "20:00", "end": "08:00" },
+      "allowed_ip_ranges": ["10.0.0.0/8"],
+      "require_registered_device": true
+    },
+
+    "cybersecurity_day": {
+      "allowed_hours": { "start": "08:00", "end": "20:00" },
+      "allowed_ip_ranges": ["0.0.0.0/0"],
+      "require_registered_device": true,
+      "elevated_privilege": true
+    },
+
+    "cybersecurity_night": {
+      "allowed_hours": { "start": "20:00", "end": "08:00" },
+      "allowed_ip_ranges": ["0.0.0.0/0"],
+      "require_registered_device": true,
+      "elevated_privilege": true
+    }
+  },
+
+  "users": {
+
+    "101": { "name": "Amit Kulkarni", "department": "Finance", "role": "day_shift", "baseline_country": "India", "baseline_mac": "00:FA:11:AA:01:01", "baseline_device": "finance-laptop-01" },
+    "102": { "name": "Meera Joshi", "department": "Finance", "role": "day_shift", "baseline_country": "India", "baseline_mac": "00:FA:11:AA:01:02", "baseline_device": "finance-laptop-02" },
+    "103": { "name": "Raghav Nambiar", "department": "Finance", "role": "night_shift", "baseline_country": "India", "baseline_mac": "00:FA:11:AA:01:03", "baseline_device": "finance-terminal-01" },
+    "104": { "name": "Shalini Deshpande", "department": "Finance", "role": "night_shift", "baseline_country": "India", "baseline_mac": "00:FA:11:AA:01:04", "baseline_device": "finance-terminal-02" },
+
+    "201": { "name": "Karthik Reddy", "department": "Marketing", "role": "day_shift", "baseline_country": "India", "baseline_mac": "00:MK:22:BB:02:01", "baseline_device": "marketing-laptop-01" },
+    "202": { "name": "Nisha Arora", "department": "Marketing", "role": "day_shift", "baseline_country": "India", "baseline_mac": "00:MK:22:BB:02:02", "baseline_device": "marketing-laptop-02" },
+    "203": { "name": "Samar Bhat", "department": "Marketing", "role": "night_shift", "baseline_country": "India", "baseline_mac": "00:MK:22:BB:02:03", "baseline_device": "marketing-terminal-01" },
+    "204": { "name": "Isha Menon", "department": "Marketing", "role": "night_shift", "baseline_country": "India", "baseline_mac": "00:MK:22:BB:02:04", "baseline_device": "marketing-terminal-02" },
+
+    "301": { "name": "Vikrant Sinha", "department": "Sales", "role": "day_shift", "baseline_country": "India", "baseline_mac": "00:SL:33:CC:03:01", "baseline_device": "sales-laptop-01" },
+    "302": { "name": "Ritu Malhotra", "department": "Sales", "role": "day_shift", "baseline_country": "India", "baseline_mac": "00:SL:33:CC:03:02", "baseline_device": "sales-laptop-02" },
+    "303": { "name": "Harsh Vardhan", "department": "Sales", "role": "night_shift", "baseline_country": "India", "baseline_mac": "00:SL:33:CC:03:03", "baseline_device": "sales-terminal-01" },
+    "304": { "name": "Pooja Naik", "department": "Sales", "role": "night_shift", "baseline_country": "India", "baseline_mac": "00:SL:33:CC:03:04", "baseline_device": "sales-terminal-02" },
+
+    "401": { "name": "Deepak Chavan", "department": "Operations", "role": "day_shift", "baseline_country": "India", "baseline_mac": "00:OP:44:DD:04:01", "baseline_device": "ops-laptop-01" },
+    "402": { "name": "Anjali Patil", "department": "Operations", "role": "day_shift", "baseline_country": "India", "baseline_mac": "00:OP:44:DD:04:02", "baseline_device": "ops-laptop-02" },
+    "403": { "name": "Manish Iyer", "department": "Operations", "role": "night_shift", "baseline_country": "India", "baseline_mac": "00:OP:44:DD:04:03", "baseline_device": "ops-terminal-01" },
+    "404": { "name": "Sneha Kale", "department": "Operations", "role": "night_shift", "baseline_country": "India", "baseline_mac": "00:OP:44:DD:04:04", "baseline_device": "ops-terminal-02" },
+
+    "501": { "name": "Aditya Rao", "department": "IT", "role": "day_shift", "baseline_country": "India", "baseline_mac": "00:IT:55:EE:05:01", "baseline_device": "it-laptop-01" },
+    "502": { "name": "Farah Siddiqui", "department": "IT", "role": "day_shift", "baseline_country": "India", "baseline_mac": "00:IT:55:EE:05:02", "baseline_device": "it-laptop-02" },
+    "503": { "name": "Naveen Shetty", "department": "IT", "role": "night_shift", "baseline_country": "India", "baseline_mac": "00:IT:55:EE:05:03", "baseline_device": "it-terminal-01" },
+    "504": { "name": "Lakshmi Narayan", "department": "IT", "role": "night_shift", "baseline_country": "India", "baseline_mac": "00:IT:55:EE:05:04", "baseline_device": "it-terminal-02" },
+
+    "9001": { "name": "Rohan Thakur", "department": "Cybersecurity", "role": "cybersecurity_day", "baseline_country": "India", "baseline_mac": "00:CS:99:FF:09:01", "baseline_device": "soc-console-01" },
+    "9002": { "name": "Tanvi Kapoor", "department": "Cybersecurity", "role": "cybersecurity_night", "baseline_country": "India", "baseline_mac": "00:CS:99:FF:09:02", "baseline_device": "soc-console-02" }
+  }
+}

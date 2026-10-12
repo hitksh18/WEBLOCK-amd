@@ -1,0 +1,40 @@
+# ============================
+# WEBLOCK CORE DEPENDENCIES
+# ============================
+
+# FastAPI Backend
+fastapi==0.110.0
+uvicorn==0.29.0
+
+# Database
+sqlalchemy==2.0.29
+psycopg[binary]==3.1.18
+
+# Environment Config
+python-dotenv==1.0.1
+
+# HTTP Requests (API ↔ AI Communication)
+requests==2.31.0
+
+# Data Validation
+pydantic==2.6.4
+
+# ============================
+# AI / MACHINE LEARNING
+# ============================
+
+scikit-learn==1.4.1.post1
+pandas==2.2.1
+numpy==1.26.4
+
+# ============================
+# FORENSIC REPORT GENERATION
+# ============================
+
+reportlab==4.1.0
+
+# ============================
+# OPTIONAL / FUTURE READY
+# ============================
+
+redis==5.0.3
