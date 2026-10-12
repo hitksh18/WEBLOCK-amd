@@ -60,6 +60,23 @@ Modular FastAPI monolith. PostgreSQL + SQLAlchemy 2.x + Alembic.
 - **Retention**: `python -m app.retention --days N [--apply]` (dry-run default,
   refuses <7d, never touches evidence/incidents/audit).
 
+## Implemented (Phase 3 — NEW)
+
+- **Production rules** (`app/services/rules.py`, 8 seeded globally via
+  `python -m app.seed_rules`): AUTH-01 brute-force (HIGH, T1110),
+  AUTH-02 off-hours (MEDIUM), DEV-01 first-auth-from-endpoint (MEDIUM),
+  PROC-01 suspicious PowerShell (HIGH, T1059.001), PROC-02 Office→shell
+  (HIGH, T1059), NET-01 external sensitive-port (MEDIUM), SYS-01 privileged
+  logon 4672 (MEDIUM), USB-01 new device (LOW). No MITRE where unjustified.
+- **Rule admin**: `GET /v1/rules` (any user), `PUT /v1/admin/rules/{id}`
+  (admin only, org-override rows, param-type validation, audited).
+- **Detection lifecycle**: `POST /v1/detections/{id}/status`
+  (open/acknowledged/resolved/false_positive; analyst+; audited).
+- **Detection filters**: severity/status/rule/endpoint/time-range/category;
+  output includes explanation, confidence, mitre, event references.
+- Migration `0004_fix_detections_meta`; drift-guard test
+  (`test_migrations.py`) compares migrated schema vs models on scratch DB.
+
 ## Planned (NOT built yet)
 
 Detection rules, correlation, AI analyst, response actions, dashboard,

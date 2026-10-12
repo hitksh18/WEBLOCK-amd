@@ -8,7 +8,7 @@ from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
-from app.core.dependencies import get_current_user
+from app.core.dependencies import get_current_user, require_role
 from app.db.database import get_db
 from app.db.models import Detection, Endpoint, SecurityEvent, User
 
@@ -129,25 +129,61 @@ def list_detections(
     endpoint_id: int | None = None,
     rule_id: str | None = None,
     status: str | None = None,
+    severity: str | None = None,
+    category: str | None = None,
+    since: datetime | None = None,
+    until: datetime | None = None,
     limit: int = Query(default=50, ge=1, le=MAX_LIMIT),
     offset: int = Query(default=0, ge=0),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     q = db.query(Detection).filter(Detection.org_id == current_user.org_id)
+    if category is not None:
+        q = q.join(SecurityEvent,
+                   SecurityEvent.id == Detection.primary_event_id
+                   ).filter(SecurityEvent.category == category)
     if endpoint_id is not None:
         q = q.filter(Detection.endpoint_id == endpoint_id)
     if rule_id is not None:
         q = q.filter(Detection.rule_id == rule_id)
     if status is not None:
         q = q.filter(Detection.status == status)
+    if severity is not None:
+        q = q.filter(Detection.severity == severity)
+    if since is not None:
+        q = q.filter(Detection.detected_at >= since)
+    if until is not None:
+        q = q.filter(Detection.detected_at <= until)
     total = q.count()
     rows = q.order_by(Detection.id.desc()).offset(offset).limit(limit).all()
     return {"total": total, "detections": [
         {"id": d.id, "rule_id": d.rule_id, "rule_version": d.rule_version,
          "severity": d.severity, "confidence": d.confidence, "status": d.status,
          "title": d.title, "explanation": d.explanation,
+         "mitre": (d.meta_data or {}).get("mitre", []),
          "endpoint_id": d.endpoint_id, "primary_event_id": d.primary_event_id,
          "related_event_ids": d.related_event_ids,
          "detected_at": d.detected_at.isoformat() if d.detected_at else None}
         for d in rows]}
+
+
+@router.post("/detections/{detection_id}/status")
+def detection_status(
+    detection_id: int, payload: dict,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("admin", "analyst",
+                                              "investigator")),
+):
+    from app.services.detection import VALID_STATUSES, set_detection_status
+    new_status = (payload.get("status") or "").lower()
+    if new_status not in VALID_STATUSES:
+        raise HTTPException(status_code=422, detail="Invalid detection status")
+    try:
+        det = set_detection_status(db, org_id=current_user.org_id,
+                                   detection_id=detection_id,
+                                   status=new_status,
+                                   actor_id=current_user.id)
+    except LookupError:
+        raise HTTPException(status_code=404, detail="Detection not found")
+    return {"id": det.id, "status": det.status}

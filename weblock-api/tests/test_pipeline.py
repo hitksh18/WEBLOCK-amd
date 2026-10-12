@@ -56,10 +56,7 @@ def test_idempotent_replay_no_dup_normalized_or_detection(client, org_a, db):
     body = _setup(client, org_a)
     event = _ev(type="auth", payload={"kind": "session_snapshot", "user": "bob",
                                       "test_marker": True})
-    # inject marker into attributes path: session_snapshot has no attributes slot;
-    # use usb_device_seen which keeps device dict? Instead mark via network remotes?
-    # Simplest: raw payload attribute passthrough is tested at unit level; here
-    # replay the same batch twice and assert single raw + single normalized.
+    # Replay the same batch twice: single raw + single normalized.
     r1 = _post(client, body, [event])
     r2 = _post(client, body, [event])
     assert r1.json()["accepted"] == 1
@@ -70,13 +67,16 @@ def test_idempotent_replay_no_dup_normalized_or_detection(client, org_a, db):
     sec = db.query(SecurityEvent).first()
     sec.attributes = {"test_marker": True}
     db.commit()
+    # First dispatch fires TEST-MARKER (+ DEV-01 first-auth, honest new
+    # behavior since Phase 3); second dispatch persists nothing (idempotent).
     n1 = dispatch_event(db, sec, extra_rules=[TestMarkerRule()])
     n2 = dispatch_event(db, sec, extra_rules=[TestMarkerRule()])
     db.commit()
-    assert n1 == 1 and n2 == 0  # detection idempotent
-    assert db.query(Detection).count() == 1
-    det = db.query(Detection).first()
-    assert det.rule_id == "TEST-MARKER"
+    assert n1 >= 1 and n2 == 0
+    rules = {d.rule_id for d in db.query(Detection).all()}
+    assert "TEST-MARKER" in rules
+    det = db.query(Detection).filter(
+        Detection.rule_id == "TEST-MARKER").first()
     assert det.primary_event_id == sec.id
     assert "[TEST]" in det.title
 

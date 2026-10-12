@@ -443,11 +443,3 @@ class Detection(Base):
     detected_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False, index=True
     )
-    # Phase 2 processing metadata — raw payload is NEVER mutated.
-    processing_status: Mapped[str] = mapped_column(
-        String(16), nullable=False, default="RECEIVED",
-        index=True)  # RECEIVED|NORMALIZED|PROCESSED|FAILED
-    normalization_version: Mapped[str | None] = mapped_column(String(16))
-    event_category: Mapped[str] = mapped_column(String(32), default="")
-    processing_error: Mapped[str] = mapped_column(Text, default="")
-    normalized_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
