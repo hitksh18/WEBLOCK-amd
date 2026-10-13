@@ -510,3 +510,28 @@ class CorrelationMember(Base):
     added_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
+
+
+class RiskSnapshot(Base):
+    """Point-in-time contextual risk for an endpoint (append-only history).
+
+    Snapshots are written when the score changes (or on forced recompute),
+    so polling the risk API does not spam rows. Phase 6 reads these.
+    """
+
+    __tablename__ = "risk_snapshots"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    org_id: Mapped[int] = mapped_column(
+        ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    endpoint_id: Mapped[int] = mapped_column(
+        ForeignKey("endpoints.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    score: Mapped[int] = mapped_column(Integer, nullable=False)
+    severity: Mapped[str] = mapped_column(String(16), nullable=False, index=True)
+    factors: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
+    inputs: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False, index=True
+    )

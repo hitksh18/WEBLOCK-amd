@@ -94,6 +94,17 @@ Modular FastAPI monolith. PostgreSQL + SQLAlchemy 2.x + Alembic.
   `POST /v1/admin/correlations/expire` (admin, >2 windows stale).
 - Migration `0005_correlation` (`correlation_clusters` + members table).
 
+## Implemented (Phase 5 — NEW)
+
+- **Contextual risk** (`app/services/risk.py`): endpoint score 0–100 from
+  open clusters + 24h detections + endpoint novelty. Factor budget:
+  correlation (strongest conf×0.4 ≤32, +4/extra ≤8), HIGH×9 (≤18),
+  families 5extra (≤10), recency 10/7/4/2, volume 0/3/5/7, repeat +5,
+  novel +4. Severity LOW<30/MEDIUM<60/HIGH<80/CRITICAL. No ML, no user
+  profiling (no identity binding yet — documented).
+- **APIs**: `GET /v1/endpoints/{id}/risk` (compute + snapshot-on-change),
+  `GET …/risk/history`. Migration `0006_contextual_risk` (`risk_snapshots`).
+
 ## Planned (NOT built yet)
 
 Detection rules, correlation, AI analyst, response actions, dashboard,

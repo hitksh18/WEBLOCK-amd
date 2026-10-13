@@ -30,6 +30,7 @@ class Settings(BaseSettings):
     LOGIN_RATE_LIMIT_WINDOW_SECONDS: int = 300
 
     CORRELATION_WINDOW_SECONDS: int = 1800
+    RISK_LOOKBACK_HOURS: int = 24
 
     NOTIFICATIONS_ENABLED: bool = False
     WEBLOCK_EMAIL: str = ""
