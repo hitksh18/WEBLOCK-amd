@@ -128,6 +128,26 @@ Modular FastAPI monolith. PostgreSQL + SQLAlchemy 2.x + Alembic.
 - **Reports**: versioned JSON + PDF (reportlab) with SHA-256, immutable files
   under `reports/`, download + verify endpoints. Migration `0008_forensics`.
 
+## Implemented (Phase 8 — NEW)
+
+- **Response engine** (`app/services/response.py` + `response_policy.py`):
+  allowlisted actions (ISOLATE/RESTORE/TERMINATE/BLOCK/UNBLOCK/DISABLE/
+  COLLECT), SIMULATION (explicit, never touches endpoint) vs LIVE,
+  deterministic RBAC policy matrix (admin all; analyst all-but-disable;
+  investigator COLLECT-only live; viewer read-only), target validation
+  (PID/IP/port/collection enums; loopback rejected), idempotency keys,
+  attempt budgets, TTLs, expire sweeper. Fail-closed everywhere.
+- **Command plane** (existing agent trust channel, no second channel):
+  heartbeat piggybacks peek-only pending list; explicit pull marks
+  DELIVERED/ACCEPTED; result posts close the loop; DELIVERED re-delivery
+  + agent ledger prevent duplicates and strand-recovery.
+- **APIs**: request/list/get/cancel/retry response actions, capabilities,
+  pending pull, result post. Isolation state syncs to endpoint.status.
+  Response lifecycle appears in the forensic timeline (audit-backed).
+- Agent 1.1.0 executes terminate/block/isolate/collect for real
+  (elevation-gated firewall work; DISABLE_SESSION honestly NOT_AVAILABLE).
+  Migration `0009_response`. NO arbitrary remote execution exists.
+
 ## Implemented (Phase 5 — NEW)
 
 - **Contextual risk** (`app/services/risk.py`): endpoint score 0–100 from

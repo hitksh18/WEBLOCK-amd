@@ -66,6 +66,25 @@ Service stop is graceful (finishes the current cycle, keeps the outbox).
 `models/telemetry.py` (envelope v1.0), `security/store.py` (DPAPI),
 `service.py`. Tests: `tests/test_agent.py` (18 tests, live-Windows verified).
 
+## Response commands (agent 1.1.0+)
+
+Each cycle (after telemetry upload) the agent pulls pending commands,
+validates (type/expiry/endpoint/duplicate/target schema), executes the
+allowlisted set, and posts signed-channel results. A durable SQLite ledger
+(`processed_commands`, 1000 rows) prevents double-execution across restarts.
+
+- TERMINATE_PROCESS: PID + optional name check (PID-reuse guard, PID 0/4
+  protected). Real psutil termination with wait + verification.
+- BLOCK/UNBLOCK_NETWORK_DESTINATION: fixed-name Windows Firewall rules for
+  validated IPs only (netsh argv lists, never shell text). Elevation-gated.
+- ISOLATE/RESTORE_ISOLATION: allow-server + block-all fixed rules, keeps the
+  WebLock management channel; state file tracked. Elevation-gated.
+- COLLECT_EVIDENCE: runs the real collector subset, queues telemetry
+  normally, reports counts. Server links a Phase 7 evidence reference.
+- DISABLE_SESSION: NOT_AVAILABLE (no safe primitive) — reported, never faked.
+
+Tests: `tests/test_response.py` (10 tests incl. live test-process kill).
+
 ## Troubleshooting
 
 - `Not enrolled` → pass `--enroll` once; check token unused/unexpired.

@@ -84,6 +84,9 @@ class Endpoint(Base):
     risk_score: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     name: Mapped[str] = mapped_column(String(255), default="")
     config: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
+    # Phase 8: agent-advertised response capabilities (see AGENT_CAPABILITIES).
+    capabilities: Mapped[dict] = mapped_column(JSON, nullable=False,
+                                               default=dict)
     last_seen: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
@@ -307,6 +310,83 @@ class ForensicReport(Base):
     )
     file_path: Mapped[str] = mapped_column(String(500), default="")
     content: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
+
+
+class ResponseAction(Base):
+    """Policy-gated response request (one row per request/attempt-chain).
+
+    Terminal statuses (FAILED/EXPIRED/CANCELLED/POLICY_DENIED) free the
+    idempotency key for a fresh request; non-terminal rows collide safely.
+    """
+
+    __tablename__ = "response_actions"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    org_id: Mapped[int] = mapped_column(
+        ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    incident_id: Mapped[int] = mapped_column(
+        ForeignKey("incidents.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    endpoint_id: Mapped[int] = mapped_column(
+        ForeignKey("endpoints.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    action_type: Mapped[str] = mapped_column(String(32), nullable=False, index=True)
+    requested_by: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL")
+    )
+    target: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
+    reason: Mapped[str] = mapped_column(String(1000), default="")
+    execution_mode: Mapped[str] = mapped_column(String(16), nullable=False)
+    status: Mapped[str] = mapped_column(String(16), default="REQUESTED", index=True)
+    policy_decision: Mapped[dict] = mapped_column(JSON, nullable=False,
+                                                  default=dict)
+    idempotency_key: Mapped[str] = mapped_column(String(64), nullable=False)
+    attempt: Mapped[int] = mapped_column(Integer, default=0)
+    max_attempts: Mapped[int] = mapped_column(Integer, default=3)
+    expires_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+    result: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
+    error_code: Mapped[str] = mapped_column(String(64), default="")
+    error_message: Mapped[str] = mapped_column(String(1000), default="")
+    requested_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+
+class AgentCommand(Base):
+    """One dispatchable command for a response action attempt."""
+
+    __tablename__ = "agent_commands"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    org_id: Mapped[int] = mapped_column(
+        ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    response_action_id: Mapped[int] = mapped_column(
+        ForeignKey("response_actions.id", ondelete="CASCADE"),
+        nullable=False, index=True,
+    )
+    command_id: Mapped[str] = mapped_column(String(64), nullable=False,
+                                            unique=True, index=True)
+    endpoint_id: Mapped[int] = mapped_column(
+        ForeignKey("endpoints.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    action_type: Mapped[str] = mapped_column(String(32), nullable=False)
+    target: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
+    execution_mode: Mapped[str] = mapped_column(String(16), nullable=False)
+    status: Mapped[str] = mapped_column(String(16), default="PENDING", index=True)
+    issued_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    expires_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+    result: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
 
 
 class Session(Base):

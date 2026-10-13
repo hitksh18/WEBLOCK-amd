@@ -33,6 +33,7 @@ KIND_RANK = {
     "correlation": 40,
     "risk": 50,
     "incident": 60,
+    "response": 65,
     "evidence": 70,
     "custody": 80,
 }
@@ -145,6 +146,28 @@ def build_incident_timeline(db: Session, incident: Incident,
             f"Incident status -> {(audit.meta_data or {}).get('status', '?')}",
             ref_id=incident.id,
             refs={"incident_id": incident.id, "audit_id": audit.id})
+
+    # Response lifecycle (Phase 8): audit rows carry incident_id in metadata.
+    for audit in (
+        db.query(AuditLog)
+        .filter(AuditLog.org_id == incident.org_id,
+                AuditLog.action.like("response.%"))
+        .order_by(AuditLog.id.asc())
+        .limit(200)
+        .all()
+    ):
+        meta = audit.meta_data or {}
+        if meta.get("incident_id") != incident.id:
+            continue
+        label = audit.action.replace("response.", "RESPONSE_").upper()
+        add(audit.created_at, "response",
+            f"{label} {meta.get('action_type', '')} "
+            f"(action #{meta.get('action_id')})".strip(),
+            ref_id=meta.get("action_id"),
+            severity=None,
+            refs={"incident_id": incident.id,
+                  "response_action_id": meta.get("action_id"),
+                  "audit_id": audit.id})
 
     # Evidence + custody for this incident.
     ev_rows = (

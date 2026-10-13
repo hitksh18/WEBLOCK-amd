@@ -69,6 +69,9 @@ class HeartbeatIn(BaseModel):
     ip: str | None = Field(default=None, max_length=45)
     queue_depth: int = Field(default=0, ge=0)
     collectors: dict = Field(default_factory=dict)
+    # Phase 8: agent-advertised response capabilities + isolation state.
+    capabilities: dict = Field(default_factory=dict)
+    isolation_active: bool | None = None
 
 
 DEFAULT_AGENT_CONFIG: dict = {

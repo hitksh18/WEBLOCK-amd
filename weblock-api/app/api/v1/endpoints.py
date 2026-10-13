@@ -8,6 +8,7 @@
 - POST /v1/admin/endpoints/{id}/revoke, PUT /v1/admin/endpoints/{id}/config
 """
 import hashlib
+import logging
 import secrets
 from datetime import datetime, timedelta, timezone
 
@@ -27,6 +28,8 @@ from app.db.models import (
     User,
 )
 from app.schemas.telemetry import HeartbeatIn, EnrollIn, merge_config
+
+logger = logging.getLogger("weblock.endpoints")
 
 router = APIRouter(tags=["endpoints"])
 
@@ -63,6 +66,7 @@ def _endpoint_out(endpoint: Endpoint) -> dict:
         "status": endpoint.status,
         "presence": _presence(endpoint),
         "risk_score": endpoint.risk_score,
+        "capabilities": endpoint.capabilities or {},
         "last_seen": endpoint.last_seen.isoformat() if endpoint.last_seen else None,
     }
 
@@ -150,12 +154,34 @@ def heartbeat(endpoint_id: int, payload: HeartbeatIn,
     if payload.ip:
         endpoint.ip_address = payload.ip
     if payload.agent_version:
-        endpoint.agent_version = payload.agent_version
+        endpoint.agent_version = payload.agent_version[:50]
+    if isinstance(payload.capabilities, dict) and payload.capabilities:
+        # Allowlist keys only; agent must not smuggle arbitrary state.
+        allowed = {"isolate_endpoint", "restore_isolation",
+                   "terminate_process", "block_network_destination",
+                   "disable_session", "collect_evidence",
+                   "agent_version", "response_protocol"}
+        endpoint.capabilities = {
+            k: bool(v) if isinstance(v, bool) else str(v)[:64]
+            for k, v in payload.capabilities.items() if k in allowed}
     if endpoint.status not in ("isolated", "revoked"):
         endpoint.status = "healthy"
+    if payload.isolation_active is not None:
+        reported = "isolated" if payload.isolation_active else "healthy"
+        if endpoint.status == "isolated" and not payload.isolation_active:
+            logger.warning("endpoint %s reports isolation lost", endpoint.agent_id)
+        elif endpoint.status != "isolated" and payload.isolation_active:
+            logger.warning("endpoint %s reports unexpected isolation",
+                           endpoint.agent_id)
+            _ = reported
+    from app.services import response as response_service
+    # Peek only: heartbeat must never consume commands (agent picks them up
+    # on the explicit pending pull, which marks DELIVERED/ACCEPTED).
+    pending = response_service.pending_commands(db, endpoint, mark=False)
     db.commit()
     return {"ok": True, "endpoint_id": endpoint.id,
-            "status": endpoint.status, "last_seen": endpoint.last_seen.isoformat()}
+            "status": endpoint.status, "last_seen": endpoint.last_seen.isoformat(),
+            "pending_commands": pending}
 
 
 @router.get("/endpoints/{endpoint_id}/config")

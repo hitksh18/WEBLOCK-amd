@@ -55,3 +55,28 @@ class ServerClient:
         )
         resp.raise_for_status()
         return resp.json()
+
+    def pending_commands(self, api_key: str, endpoint_id: int) -> list[dict]:
+        resp = requests.get(
+            f"{self.base}/v1/endpoints/{endpoint_id}/commands/pending",
+            headers={"Authorization": f"Bearer {api_key}"},
+            timeout=self.timeout, verify=self.verify,
+        )
+        resp.raise_for_status()
+        return resp.json().get("commands", [])
+
+    def post_command_result(self, api_key: str, endpoint_id: int,
+                            command_id: str, status: str,
+                            result: dict | None = None,
+                            error_code: str = "",
+                            error_message: str = "") -> dict:
+        resp = requests.post(
+            f"{self.base}/v1/endpoints/{endpoint_id}/commands/{command_id}/result",
+            json={"status": status, "result": result or {},
+                  "error_code": error_code,
+                  "error_message": error_message[:1000]},
+            headers={"Authorization": f"Bearer {api_key}"},
+            timeout=self.timeout, verify=self.verify,
+        )
+        resp.raise_for_status()
+        return resp.json()

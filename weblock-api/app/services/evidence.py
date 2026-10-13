@@ -26,7 +26,7 @@ from app.db.models import (
 logger = logging.getLogger("weblock.evidence")
 
 SOURCE_TYPES = ("TELEMETRY_EVENT", "SECURITY_EVENT", "DETECTION", "CORRELATION",
-                "INCIDENT", "LOGIN")
+                "INCIDENT", "LOGIN", "RESPONSE_RESULT")
 CUSTODY_ACTIONS = ("COLLECTED", "STORED", "VIEWED", "VERIFIED", "EXPORTED",
                    "UPDATED_METADATA")
 
@@ -214,13 +214,16 @@ def verify_evidence(db: Session, *, org_id: int, evidence_id: int,
     recomputed = _sha(_canonical(row.content or {}))
     ok = recomputed == row.sha256
     # Cross-check the live source record still matches the reference.
+    # RESPONSE_RESULT rows are self-contained by design (collection summary
+    # produced by the response pipeline itself): content hash suffices.
     source_ok = True
-    try:
-        summary, _ = resolve_source(db, org_id, row.source_type,
-                                    row.source_id or -1)
-        source_ok = summary == (row.content or {}).get("reference")
-    except (LookupError, ValueError):
-        source_ok = False  # source deleted/retained: reference frozen, flagged
+    if row.source_type != "RESPONSE_RESULT":
+        try:
+            summary, _ = resolve_source(db, org_id, row.source_type,
+                                        row.source_id or -1)
+            source_ok = summary == (row.content or {}).get("reference")
+        except (LookupError, ValueError):
+            source_ok = False  # source deleted/retained: reference frozen
     row.integrity_status = "VERIFIED" if (ok and source_ok) else "TAMPERED"
     add_custody(db, org_id=org_id, evidence_id=row.id, action="VERIFIED",
                 actor_user_id=actor_user_id,

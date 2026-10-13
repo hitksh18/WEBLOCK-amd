@@ -133,10 +133,15 @@ def run_once(cfg: AgentConfig) -> dict:
     device = collect_device_info()
     heartbeat_ok = False
     try:
+        from weblock_agent import commands as cmd_mod
+        from weblock_agent import executors as exe_mod
         client.heartbeat(api_key, identity["endpoint_id"], {
             "hostname": device["hostname"], "os": device["os"],
             "os_version": device["os_version"], "ip": device["ip"],
             "agent_version": __version__, "queue_depth": outbox.depth(),
+            "capabilities": {**cmd_mod.advertise_capabilities(),
+                             "agent_version": __version__},
+            "isolation_active": exe_mod.isolation_state(),
         })
         heartbeat_ok = True
     except Exception:
@@ -145,10 +150,23 @@ def run_once(cfg: AgentConfig) -> dict:
     # 4. Upload with retry loop (bounded per cycle; rest next cycle).
     uploaded, pending = upload_claimed(client, api_key, identity["agent_id"],
                                        outbox, cfg.max_batch_events)
-    logger.info("cycle done collected=%d new=%d uploaded=%d pending=%d hb=%s",
-                len(events), added, uploaded, pending, heartbeat_ok)
+
+    # 5. Response commands (non-fatal; never breaks telemetry).
+    cmd_stats: dict = {}
+    try:
+        from weblock_agent.ledger import CommandLedger
+        from weblock_agent.response import process_commands
+        ledger = CommandLedger(cfg.outbox_path)
+        cmd_stats = process_commands(
+            client, api_key, identity["agent_id"], identity["endpoint_id"],
+            server_url, cfg.workdir, outbox, ledger)
+    except Exception:
+        logger.exception("command cycle failed")
+    logger.info("cycle done collected=%d new=%d uploaded=%d pending=%d hb=%s cmds=%s",
+                len(events), added, uploaded, pending, heartbeat_ok, cmd_stats)
     return {"collected": len(events), "queued_new": added, "uploaded": uploaded,
-            "pending": pending, "heartbeat": heartbeat_ok}
+            "pending": pending, "heartbeat": heartbeat_ok,
+            "commands": cmd_stats}
 
 
 def run_forever(cfg: AgentConfig) -> None:
