@@ -107,6 +107,27 @@ Modular FastAPI monolith. PostgreSQL + SQLAlchemy 2.x + Alembic.
   user_id stays NULL (no identity binding yet — documented).
 - Migration `0007_incident_engine` (correlation_id/risk_snapshot_id FKs).
 
+## Implemented (Phase 7 — NEW)
+
+- **Hash chain**: `telemetry_events` gains `prev_hash`/`chain_seq` (unique per
+  endpoint) + `hash_algorithm`. New rows: `sha256-canonical-v1` (server
+  UTC-canonical, fully recomputable); pre-Phase-7 rows: `sha256-received-v1`
+  (linkage-only, labeled LEGACY). Backfilled per endpoint by migration.
+- **Verification**: `POST /v1/endpoints/{id}/integrity/verify` (7-day window
+  cap) and `GET /v1/incidents/{id}/integrity`; detects payload/hash edits,
+  prev-link breaks, sequence gaps; read-only; "cryptographic integrity
+  verification" (no tamper-proof/legal claims).
+- **Evidence**: extended table (nullable incident, correlation ref, source
+  types TELEMETRY/SECURITY/DETECTION/CORRELATION/INCIDENT/LOGIN only),
+  collect/verify endpoints, integrity statuses, audited views/exports.
+- **Custody**: hash-chained COLLECTED/STORED/VIEWED/VERIFIED/EXPORTED/
+  UPDATED_METADATA records (DB CHECK), chain verify endpoint.
+- **Snapshots**: immutable incident reference-graph snapshots (hash).
+- **Timeline**: `GET /v1/incidents/{id}/timeline` (telemetry→custody,
+  deterministic order, paginated).
+- **Reports**: versioned JSON + PDF (reportlab) with SHA-256, immutable files
+  under `reports/`, download + verify endpoints. Migration `0008_forensics`.
+
 ## Implemented (Phase 5 — NEW)
 
 - **Contextual risk** (`app/services/risk.py`): endpoint score 0–100 from

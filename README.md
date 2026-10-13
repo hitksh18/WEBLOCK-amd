@@ -8,8 +8,8 @@ controlled response → SOC control center.
 
 | Area | State |
 |---|---|
-| Backend API (`weblock-api/app`, `/v1`) | **Implemented + tested (114 tests)** |
-| PostgreSQL + Alembic (`0007_incident_engine`) | **Implemented (21 tables)** |
+| Backend API (`weblock-api/app`, `/v1`) | **Implemented + tested (129 tests)** |
+| PostgreSQL + Alembic (`0008_forensics`) | **Implemented (25 tables)** |
 | Auth (JWT access/refresh, RBAC, org isolation) | **Implemented** |
 | Login risk → incidents → evidence → audit | **Implemented** |
 | Windows agent (`weblock-agent/`, 18 tests, live-verified) | **Implemented — Phase 1** |
@@ -18,8 +18,9 @@ controlled response → SOC control center.
 | Event correlation (clusters, score, timeline) | **Implemented — Phase 4** |
 | Contextual risk (0–100, factors, history) | **Implemented — Phase 5** |
 | Incident engine (auto/manual, cluster-linked) | **Implemented — Phase 6** |
-| Incidents planned — Phase 6 | Response engine planned — Phase 8 |
-| Forensics reports, MITRE, AI analyst, response | Planned — Phases 6–10 |
+| Digital forensics (chain verify, custody, reports) | **Implemented — Phase 7** |
+| Response engine planned — Phase 8 | Response engine planned — Phase 8 |
+| MITRE, AI analyst | Planned — Phases 8–9 (ATT&CK tags exist on rules) |
 | Dashboard (`weblock-dashboard/`) | Planned — Phases 12–15 (empty scaffold today) |
 | `weblock-ai/`, `weblock-forensics/`, `weblock-compliance/`, `weblock-sdk/` | Empty scaffolds, planned Phases 7–9 |
 

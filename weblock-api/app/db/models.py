@@ -11,6 +11,7 @@ from datetime import datetime
 
 from sqlalchemy import (
     JSON,
+    BigInteger,
     Boolean,
     DateTime,
     ForeignKey,
@@ -202,8 +203,9 @@ class Evidence(Base):
     org_id: Mapped[int] = mapped_column(
         ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True
     )
-    incident_id: Mapped[int] = mapped_column(
-        ForeignKey("incidents.id", ondelete="CASCADE"), nullable=False, index=True
+    # Phase 7: nullable — reference evidence may exist without an incident.
+    incident_id: Mapped[int | None] = mapped_column(
+        ForeignKey("incidents.id", ondelete="CASCADE"), index=True
     )
     source: Mapped[str] = mapped_column(String(100), nullable=False, default="login")
     collected_at: Mapped[datetime] = mapped_column(
@@ -213,6 +215,98 @@ class Evidence(Base):
     sha256: Mapped[str] = mapped_column(String(64), nullable=False)
     collector: Mapped[str] = mapped_column(String(255), default="weblock-server")
     chain_of_custody: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
+    # Phase 7 forensic extension (legacy rows: source_type LOGIN).
+    correlation_id: Mapped[int | None] = mapped_column(
+        ForeignKey("correlation_clusters.id", ondelete="SET NULL")
+    )
+    source_type: Mapped[str] = mapped_column(String(32), default="LOGIN", index=True)
+    source_id: Mapped[int | None] = mapped_column(Integer, index=True)
+    collected_by: Mapped[str] = mapped_column(String(255), default="weblock-server")
+    integrity_status: Mapped[str] = mapped_column(
+        String(16), default="UNVERIFIED", index=True)  # UNVERIFIED|VERIFIED|TAMPERED
+    description: Mapped[str] = mapped_column(Text, default="")
+    meta: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
+
+
+class CustodyRecord(Base):
+    """Hash-chained chain-of-custody entry (engineering audit trail).
+
+    record_hash = sha256(prev_hash + canonical(action|evidence|actor|ts|reason)).
+    Actions are CHECK-constrained; no legal-admissibility claim.
+    """
+
+    __tablename__ = "custody_records"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    org_id: Mapped[int] = mapped_column(
+        ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    evidence_id: Mapped[int] = mapped_column(
+        ForeignKey("evidence.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    action: Mapped[str] = mapped_column(String(24), nullable=False)
+    actor_user_id: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL")
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False, index=True
+    )
+    reason: Mapped[str] = mapped_column(String(500), default="")
+    meta_data: Mapped[dict] = mapped_column(JSON, default=dict)
+    prev_hash: Mapped[str] = mapped_column(String(64), default="GENESIS")
+    record_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+
+
+class EvidenceSnapshot(Base):
+    """Immutable incident evidence snapshot (references + hash, no blobs)."""
+
+    __tablename__ = "evidence_snapshots"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    org_id: Mapped[int] = mapped_column(
+        ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    incident_id: Mapped[int] = mapped_column(
+        ForeignKey("incidents.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    created_by: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL")
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    evidence_ids: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
+    snapshot_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+
+
+class ForensicReport(Base):
+    """Versioned forensic report (immutable versions, hashed bytes)."""
+
+    __tablename__ = "forensic_reports"
+    __table_args__ = (
+        UniqueConstraint("incident_id", "version",
+                         name="uq_reports_incident_version"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    org_id: Mapped[int] = mapped_column(
+        ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    incident_id: Mapped[int] = mapped_column(
+        ForeignKey("incidents.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    version: Mapped[int] = mapped_column(Integer, nullable=False)
+    format: Mapped[str] = mapped_column(String(16), nullable=False)  # json|pdf
+    sha256: Mapped[str] = mapped_column(String(64), nullable=False)
+    size_bytes: Mapped[int] = mapped_column(Integer, default=0)
+    generated_by: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL")
+    )
+    generated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    file_path: Mapped[str] = mapped_column(String(500), default="")
+    content: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
 
 
 class Session(Base):
@@ -335,6 +429,13 @@ class TelemetryEvent(Base):
     received_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
+    # Phase 7 chain metadata. event_hash contract unchanged:
+    #  'sha256-received-v1' = as-received bytes (linkage-verifiable only);
+    #  'sha256-canonical-v1' = server-canonical form (fully recomputable).
+    prev_hash: Mapped[str | None] = mapped_column(String(64), index=True)
+    chain_seq: Mapped[int | None] = mapped_column(BigInteger, index=True)
+    hash_algorithm: Mapped[str] = mapped_column(String(32),
+                                                default="sha256-received-v1")
     # Phase 2 processing metadata — raw payload is NEVER mutated.
     processing_status: Mapped[str] = mapped_column(
         String(16), nullable=False, default="RECEIVED",

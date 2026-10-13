@@ -91,8 +91,11 @@ def build_explanation(endpoint_label: str, ordered: list[Detection],
     minutes = max(1, int(span_seconds // 60))
     seq = " -> ".join(f"{d.rule_id}" for d in ordered)
     fams = ", ".join(sorted(families)).lower()
-    text = (f"{len(ordered)} detections from {len(families)} rule families "
-            f"({fams}) were observed on endpoint '{endpoint_label}' within "
+    n_det = "1 detection" if len(ordered) == 1 else f"{len(ordered)} detections"
+    n_fam = "1 rule family" if len(families) == 1 else \
+        f"{len(families)} rule families"
+    text = (f"{n_det} from {n_fam} ({fams}) were observed on endpoint "
+            f"'{endpoint_label}' within "
             f"{minutes} minute(s) (window {window // 60} min). "
             f"Observed sequence: {seq}.")
     fams_up = {f.upper() for f in families}

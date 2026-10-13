@@ -5,7 +5,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 
-from app.api.v1 import admin, auth, correlations, endpoints, events, health, incidents, login, risk, rules, telemetry
+from app.api.v1 import admin, auth, correlations, endpoints, events, forensics, health, incidents, login, risk, rules, telemetry
 from app.core.config import settings
 
 logging.basicConfig(
@@ -47,6 +47,7 @@ def create_app() -> FastAPI:
     application.include_router(rules.router, prefix="/v1")
     application.include_router(correlations.router, prefix="/v1")
     application.include_router(risk.router, prefix="/v1")
+    application.include_router(forensics.router, prefix="/v1")
     application.include_router(incidents.router, prefix="/v1")
 
     @application.get("/")

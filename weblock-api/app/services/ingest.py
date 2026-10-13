@@ -24,10 +24,41 @@ from app.services.normalize import NORM_VERSION, normalize
 
 logger = logging.getLogger("weblock.ingest")
 
+HASH_RECEIVED_V1 = "sha256-received-v1"
+HASH_CANONICAL_V1 = "sha256-canonical-v1"
+
 
 def canonical_hash(event: dict) -> str:
+    """Legacy v1: SHA-256 over as-received envelope bytes.
+
+    Contract preserved: existing rows keep this form (linkage-verifiable
+    only — the original occurred_at string is not recoverable server-side).
+    """
     return hashlib.sha256(
         json.dumps(event, sort_keys=True, separators=(",", ":"),
+                   default=str).encode()
+    ).hexdigest()
+
+
+def canonical_envelope(event_id: str, schema_version: str, type_: str,
+                       occurred_at, source: str, payload: dict) -> dict:
+    """Server-canonical envelope (v2): occurred_at normalized to UTC ISO."""
+    return {
+        "event_id": event_id,
+        "occurred_at": as_utc(occurred_at).isoformat(),
+        "payload": payload,
+        "schema_version": schema_version,
+        "source": source,
+        "type": type_,
+    }
+
+
+def canonical_hash_v2(event_id: str, schema_version: str, type_: str,
+                      occurred_at, source: str, payload: dict) -> str:
+    return hashlib.sha256(
+        json.dumps(canonical_envelope(event_id, schema_version, type_,
+                                      occurred_at, source, payload),
+                   sort_keys=True, separators=(",", ":"),
                    default=str).encode()
     ).hexdigest()
 
@@ -80,7 +111,10 @@ def persist_raw(db: Session, endpoint: Endpoint,
         "source": c["parsed"].source,
         "occurred_at": as_utc(c["parsed"].occurred_at),
         "payload": c["parsed"].payload,
-        "event_hash": canonical_hash(c["raw"]),
+        "event_hash": canonical_hash_v2(
+            c["parsed"].event_id, c["parsed"].schema_version, c["parsed"].type,
+            c["parsed"].occurred_at, c["parsed"].source, c["parsed"].payload),
+        "hash_algorithm": HASH_CANONICAL_V1,
         "processing_status": "RECEIVED",
     } for c in candidates]
 
@@ -91,7 +125,43 @@ def persist_raw(db: Session, endpoint: Endpoint,
                 .returning(TelemetryEvent))
         inserted = list(db.execute(stmt).scalars().all())
         dup += len(rows) - len(inserted)
+    # Always run: converges chain links for retried batches whose rows already
+    # exist but are still unchained. Touches only chain_seq-NULL rows.
+    assign_chain(db, endpoint)
     return inserted, dup, rejected
+
+
+def assign_chain(db: Session, endpoint: Endpoint) -> int:
+    """Link all unchained rows for the endpoint in (occurred_at, id) order.
+
+    Idempotent: only rows with chain_seq NULL are linked, continuing from the
+    current max (hash, seq). Late/backfilled rows take the next sequence —
+    the chain reflects ingest order within equal timestamps (documented).
+    Returns number of rows linked.
+    """
+    from sqlalchemy import func as sa_func
+    top = (
+        db.query(TelemetryEvent.event_hash, TelemetryEvent.chain_seq)
+        .filter(TelemetryEvent.endpoint_id == endpoint.id,
+                TelemetryEvent.chain_seq.is_not(None))
+        .order_by(TelemetryEvent.chain_seq.desc())
+        .first()
+    )
+    last_hash, last_seq = (top[0], top[1]) if top else (None, 0)
+    pending = (
+        db.query(TelemetryEvent)
+        .filter(TelemetryEvent.endpoint_id == endpoint.id,
+                TelemetryEvent.chain_seq.is_(None))
+        .order_by(TelemetryEvent.occurred_at.asc(), TelemetryEvent.id.asc())
+        .all()
+    )
+    for row in pending:
+        last_seq += 1
+        row.prev_hash = last_hash
+        row.chain_seq = last_seq
+        last_hash = row.event_hash
+    db.flush()
+    return len(pending)
 
 
 def normalize_and_dispatch(db: Session, endpoint: Endpoint,
