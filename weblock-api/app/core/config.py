@@ -31,6 +31,7 @@ class Settings(BaseSettings):
 
     CORRELATION_WINDOW_SECONDS: int = 1800
     RISK_LOOKBACK_HOURS: int = 24
+    INCIDENT_MIN_RISK: int = 60
 
     NOTIFICATIONS_ENABLED: bool = False
     WEBLOCK_EMAIL: str = ""

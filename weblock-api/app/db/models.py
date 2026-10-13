@@ -178,6 +178,14 @@ class Incident(Base):
     event_id: Mapped[int | None] = mapped_column(
         ForeignKey("login_events.id", ondelete="SET NULL")
     )
+    # Phase 6: incident-from-correlation linkage (nullable; legacy
+    # login-incidents use user_id/event_id instead and keep working).
+    correlation_id: Mapped[int | None] = mapped_column(
+        ForeignKey("correlation_clusters.id", ondelete="SET NULL"), index=True
+    )
+    risk_snapshot_id: Mapped[int | None] = mapped_column(
+        ForeignKey("risk_snapshots.id", ondelete="SET NULL")
+    )
     summary: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False

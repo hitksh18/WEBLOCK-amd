@@ -31,11 +31,8 @@ router = APIRouter(tags=["login"])
 
 _SEVERITY_BY_CLASS = {"Suspicious": "medium", "Intruder": "high"}
 
-
-def _incident_key(db: Session, org_id: int) -> str:
-    year = datetime.now(timezone.utc).year
-    count = db.query(Incident).filter(Incident.org_id == org_id).count() + 1
-    return f"INC-{year}-{count:04d}"
+# Shared key sequence with the Phase 6 incident engine.
+from app.services.incidents import next_incident_key as _incident_key
 
 
 @router.post("/analyze-login", response_model=AnalyzeLoginResponse)

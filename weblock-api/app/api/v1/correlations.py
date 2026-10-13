@@ -136,6 +136,33 @@ def close_correlation(
     return {"id": cluster.id, "status": cluster.status}
 
 
+@router.post("/correlations/{cluster_id}/incident")
+def incident_from_correlation(
+    cluster_id: int, db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("admin", "analyst",
+                                              "investigator")),
+):
+    """Analyst-judgment incident from any open cluster (thresholds bypassed,
+    idempotent per cluster)."""
+    from app.services.incidents import maybe_create_incident
+    cluster = (
+        db.query(CorrelationCluster)
+        .filter(CorrelationCluster.id == cluster_id,
+                CorrelationCluster.org_id == current_user.org_id)
+        .first()
+    )
+    if cluster is None:
+        raise HTTPException(status_code=404, detail="Cluster not found")
+    incident = maybe_create_incident(db, cluster, manual=True,
+                                     actor_id=current_user.id)
+    db.commit()
+    if incident is None:
+        raise HTTPException(status_code=409,
+                            detail="Cluster is not open for incidents")
+    return {"id": incident.id, "incident_key": incident.incident_key,
+            "status": incident.status}
+
+
 @router.post("/admin/correlations/expire")
 def expire_correlations(
     db: Session = Depends(get_db),

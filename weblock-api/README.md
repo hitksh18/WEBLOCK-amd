@@ -94,6 +94,19 @@ Modular FastAPI monolith. PostgreSQL + SQLAlchemy 2.x + Alembic.
   `POST /v1/admin/correlations/expire` (admin, >2 windows stale).
 - Migration `0005_correlation` (`correlation_clusters` + members table).
 
+## Implemented (Phase 6 — NEW)
+
+- **Incident engine** (`app/services/incidents.py`): auto-incident from OPEN
+  HIGH/CRITICAL clusters with endpoint risk ≥ `INCIDENT_MIN_RISK` (60);
+  manual analyst creation from any open cluster; idempotent per cluster
+  (app check + partial unique index); incidents re-sync title/summary/risk
+  as their cluster grows; shared `next_incident_key()` (INC-YYYY-NNNN).
+- **APIs**: `POST /v1/correlations/{id}/incident` (analyst+), incident list
+  += severity/endpoint/pagination filters, detail += correlation block
+  (cluster + ordered detections + event refs) and risk block (snapshot).
+  user_id stays NULL (no identity binding yet — documented).
+- Migration `0007_incident_engine` (correlation_id/risk_snapshot_id FKs).
+
 ## Implemented (Phase 5 — NEW)
 
 - **Contextual risk** (`app/services/risk.py`): endpoint score 0–100 from
