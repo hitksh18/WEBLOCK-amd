@@ -34,6 +34,7 @@ KIND_RANK = {
     "risk": 50,
     "incident": 60,
     "response": 65,
+    "ai": 66,
     "evidence": 70,
     "custody": 80,
 }
@@ -167,6 +168,27 @@ def build_incident_timeline(db: Session, incident: Incident,
             severity=None,
             refs={"incident_id": incident.id,
                   "response_action_id": meta.get("action_id"),
+                  "audit_id": audit.id})
+
+    # AI analyst lifecycle (Phase 9): audit rows carry incident_id too.
+    for audit in (
+        db.query(AuditLog)
+        .filter(AuditLog.org_id == incident.org_id,
+                AuditLog.action.like("ai.%"))
+        .order_by(AuditLog.id.asc())
+        .limit(200)
+        .all()
+    ):
+        meta = audit.meta_data or {}
+        if meta.get("incident_id") != incident.id:
+            continue
+        label = audit.action.replace("ai.", "AI_ANALYSIS_").upper()
+        add(audit.created_at, "ai",
+            f"{label} (analysis #{meta.get('analysis_id')})".strip(),
+            ref_id=meta.get("analysis_id"),
+            severity=None,
+            refs={"incident_id": incident.id,
+                  "analysis_id": meta.get("analysis_id"),
                   "audit_id": audit.id})
 
     # Evidence + custody for this incident.

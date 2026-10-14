@@ -33,6 +33,18 @@ class Settings(BaseSettings):
     RISK_LOOKBACK_HOURS: int = 24
     INCIDENT_MIN_RISK: int = 60
 
+    # Phase 9 AI Security Analyst (disabled unless explicitly enabled with key).
+    AI_ENABLED: bool = False
+    AI_PROVIDER: str = "openai-compatible"
+    AI_MODEL: str = ""
+    AI_API_KEY: str = ""
+    AI_BASE_URL: str = "https://api.openai.com/v1"
+    AI_TIMEOUT_SECONDS: int = 30
+    AI_MAX_INPUT_BYTES: int = 12000
+    AI_MAX_OUTPUT_BYTES: int = 8000
+    AI_MAX_ANALYSES_PER_INCIDENT: int = 20
+    AI_MIN_REFRESH_SECONDS: int = 60
+
     NOTIFICATIONS_ENABLED: bool = False
     WEBLOCK_EMAIL: str = ""
     WEBLOCK_EMAIL_PASSWORD: str = ""

@@ -312,6 +312,47 @@ class ForensicReport(Base):
     content: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
 
 
+class AIAnalysis(Base):
+    """Versioned AI analyst output (immutable per version).
+
+    The canonical analysis is the VALIDATED structured payload; raw provider
+    text is never stored. History rows are never updated.
+    """
+
+    __tablename__ = "ai_analyses"
+    __table_args__ = (
+        UniqueConstraint("incident_id", "version",
+                         name="uq_ai_incident_version"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    org_id: Mapped[int] = mapped_column(
+        ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    incident_id: Mapped[int] = mapped_column(
+        ForeignKey("incidents.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    version: Mapped[int] = mapped_column(Integer, nullable=False)
+    provider: Mapped[str] = mapped_column(String(64), default="")
+    model: Mapped[str] = mapped_column(String(128), default="")
+    prompt_version: Mapped[str] = mapped_column(String(16), default="1")
+    output_version: Mapped[str] = mapped_column(String(16), default="1")
+    context_hash: Mapped[str] = mapped_column(String(64), default="")
+    status: Mapped[str] = mapped_column(String(24), default="REQUESTED",
+                                        index=True)
+    created_by: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL")
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    analysis: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
+    validation_status: Mapped[str] = mapped_column(String(24), default="PENDING")
+    error_code: Mapped[str] = mapped_column(String(64), default="")
+    error_message: Mapped[str] = mapped_column(String(1000), default="")
+
+
 class ResponseAction(Base):
     """Policy-gated response request (one row per request/attempt-chain).
 

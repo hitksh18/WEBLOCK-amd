@@ -148,6 +148,22 @@ Modular FastAPI monolith. PostgreSQL + SQLAlchemy 2.x + Alembic.
   (elevation-gated firewall work; DISABLE_SESSION honestly NOT_AVAILABLE).
   Migration `0009_response`. NO arbitrary remote execution exists.
 
+## Implemented (Phase 9 — NEW)
+
+- **AI analyst** (`services/ai_providers.py` + `ai_context.py` +
+  `ai_analysis.py`): provider abstraction (OpenAI-compatible HTTPS, no new
+  deps; MockProvider test-only), deterministic bounded incident context
+  (detections/events/evidence/integrity/response/timeline, truncation
+  flagged, SHA-256 context hash, zero secrets), strict output schema
+  (facts/inferences/recommendations/unknowns + MITRE), reference validation
+  against live org records (hallucinated IDs reject the analysis),
+  versioned immutable `ai_analyses`, rate limits (quota/refresh/output),
+  honest AI_UNAVAILABLE when unconfigured. Prompt structure separates
+  trusted instructions from untrusted data (injection documented, not
+  claimed solved). AI advises only — zero execution path to Phase 8.
+- **APIs**: request/list/get/refresh analyses, ai-context preview; timeline
+  carries AI_ANALYSIS_* events. Migration `0010_ai_analyses`.
+
 ## Implemented (Phase 5 — NEW)
 
 - **Contextual risk** (`app/services/risk.py`): endpoint score 0–100 from
