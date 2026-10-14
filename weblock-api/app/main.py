@@ -52,6 +52,20 @@ def create_app() -> FastAPI:
     application.include_router(ai.router, prefix="/v1")
     application.include_router(incidents.router, prefix="/v1")
 
+    # Phase 10: minimal CORS for the browser dashboard (origins from env).
+    origins = [o.strip() for o in settings.CORS_ORIGINS.split(",") if o.strip()]
+    if origins:
+        from fastapi.middleware.cors import CORSMiddleware
+        application.add_middleware(
+            CORSMiddleware,
+            allow_origins=origins,
+            allow_credentials=False,
+            allow_methods=["GET", "POST", "PUT"],
+            allow_headers=["Authorization", "Content-Type"],
+            max_age=600,
+        )
+        logger.info("CORS enabled for: %s", origins)
+
     @application.get("/")
     def root():
         return {"status": "WebLock API Running", "version": settings.APP_VERSION}

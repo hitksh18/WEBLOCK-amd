@@ -49,6 +49,9 @@ class Settings(BaseSettings):
     WEBLOCK_EMAIL: str = ""
     WEBLOCK_EMAIL_PASSWORD: str = ""
 
+    # Phase 10: browser dashboard origin(s), comma-separated. Empty = no CORS.
+    CORS_ORIGINS: str = "http://localhost:5173"
+
     @property
     def is_production(self) -> bool:
         return self.APP_ENV.lower() == "production"

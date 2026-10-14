@@ -6,7 +6,6 @@ __pycache__/
 venv/
 .env
 .env.local
-
 # Secrets - NEVER commit
 *.pem
 *.key
@@ -35,3 +34,8 @@ Thumbs.db
 .pytest_cache/
 .coverage
 htmlcov/
+
+# Frontend (Phase 10)
+node_modules/
+dist/
+*.local
